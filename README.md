@@ -19,12 +19,32 @@ A comprehensive study portal, memory coach, and interactive exam simulator for u
   * **Lecture 4:** User Authentication, Factors, Password Storage & Salting, 8 Password Attacks, Bloom Filters, TOTP vs. HOTP, Biometrics (FAR/FRR/EER).
   * **Lecture 5:** Access Control Models (DAC, MAC, RBAC, ABAC), Bell-LaPadula Model (WURD rules), SQL DCL (GRANT/REVOKE), and RBAC Constraints.
 
-* **Interactive Single-Page Application (`index.html`):**
-  * **Simplified Summaries:** Clean cards, visual tags, bold technical terms, and comparison tables.
-  * **3D Flashcards:** Interactive flip-cards for rapid memory recall of golden rules and definitions.
-  * **100 Exam MCQs (20 per lecture):** Interactive quiz engine with real-time scoring, percentage calculation, and detailed explanations for every option.
-  * **Global Concept Search:** Filter by keyword (e.g. `BLP`, `FAR`, `STRIDE`, `HMAC`, `CVSS`).
-  * **Dark OSINT/Terminal UI:** Styled with pure Tailwind CSS.
+* **⚡ Instant Question Feedback Engine:**
+  * As soon as an option is selected, the application immediately indicates if it is **Correct** (emerald green glow) or **Incorrect** (rose red).
+  * If answered incorrectly, the correct answer is automatically highlighted with a `Correct Answer` badge so you learn immediately without waiting.
+  * The full pedagogical justification expands beneath the question.
+  * Includes a "Try Again" option if you want to re-attempt questions after reviewing.
+
+* **🎲 All-Lectures 100Q Shuffled Exam Simulator:**
+  * Aggregates all 100 questions from Lectures 1 through 5 into a single randomized exam mode.
+  * **🔀 Reshuffle Order:** Uses the Fisher-Yates algorithm to randomize question order on demand.
+  * **Filter Chips:** Filter by *All Questions*, *Unanswered*, *Missed / Review Needed*, or *Correct*.
+  * **Source Tags:** Shows which lecture each question originated from.
+  * **100-Question Jump Matrix:** A 100-pill visual overview grid indicating answered status and jumping directly to any question.
+
+* **📊 Live Floating HUD & Streak Tracker:**
+  * Real-time tracking of questions solved, live score, accuracy percentage, and correct streaks (`🔥 Streak`).
+  * Persists answers and progress in `localStorage` across reloads.
+
+* **🧠 3D Interactive Flashcards & Mastery Tracking:**
+  * Interactive 3D flip-cards for rapid memorization of golden rules, definitions, and distinctions.
+  * Star (`★`) button to mark concepts as mastered with a real-time mastery counter.
+
+* **🔍 Global Concept Search:**
+  * Press `Ctrl + K` or `/` to search across all summaries, flashcards, and questions (e.g. `BLP`, `FAR`, `STRIDE`, `HMAC`, `CVSS`).
+
+* **🎨 Dark OSINT/Cyber Terminal Theme:**
+  * Built with Tailwind CSS, custom animations, clean typography (Inter & JetBrains Mono), and print-ready stylesheets.
 
 ---
 

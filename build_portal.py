@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Builds the complete single-page CyberTutor portal in d:\\Tech\\Summariez\\index.html
+Features:
+- Instant feedback on every question selection (emerald for correct, rose for incorrect, correct answer revealed immediately, explanation expanded instantly)
+- Dedicated "🎲 All-Lectures Simulator (100 Qs Shuffled)" mode with randomizer, lecture source tags, and filters
+- Senior UI/UX overhaul: sticky live HUD (answered count, score, accuracy %, streak 🔥), 100-question jump navigator, flashcard mastery tracking, dark cybersecurity theme, and local persistence.
 """
 import json
 import html
@@ -30,19 +34,42 @@ def generate_html():
                 extend: {{
                     colors: {{
                         cyber: {{
-                            950: '#070b13',
-                            900: '#0a0f1d',
-                            800: '#11182c',
-                            700: '#1b2545',
+                            950: '#050811',
+                            900: '#090f1f',
+                            850: '#0d152b',
+                            800: '#121d3a',
+                            750: '#182548',
+                            700: '#1e2e58',
                             cyan: '#00f0ff',
                             rose: '#ff3366',
                             emerald: '#00ffaa',
-                            amber: '#ffb703'
+                            amber: '#ffb703',
+                            indigo: '#818cf8',
+                            purple: '#a855f7'
                         }}
                     }},
                     fontFamily: {{
-                        mono: ['"JetBrains Mono"', 'monospace'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
                         sans: ['"Inter"', 'system-ui', 'sans-serif']
+                    }},
+                    animation: {{
+                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-down': 'slideDown 0.25s ease-out forwards',
+                        'pop-in': 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    }},
+                    keyframes: {{
+                        pulseGlow: {{
+                            '0%, 100%': {{ opacity: '1', filter: 'drop-shadow(0 0 12px rgba(0,240,255,0.4))' }},
+                            '50%': {{ opacity: '.7', filter: 'drop-shadow(0 0 4px rgba(0,240,255,0.15))' }},
+                        }},
+                        slideDown: {{
+                            '0%': {{ opacity: '0', transform: 'translateY(-8px)' }},
+                            '100%': {{ opacity: '1', transform: 'translateY(0)' }},
+                        }},
+                        popIn: {{
+                            '0%': {{ opacity: '0', transform: 'scale(0.96)' }},
+                            '100%': {{ opacity: '1', transform: 'scale(1)' }},
+                        }}
                     }}
                 }}
             }}
@@ -51,12 +78,16 @@ def generate_html():
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            color-scheme: dark;
+        }}
         body {{
             font-family: 'Inter', sans-serif;
-            background-color: #070b13;
+            background-color: #050811;
             color: #e2e8f0;
+            overflow-x: hidden;
         }}
         .font-mono {{
             font-family: 'JetBrains Mono', monospace;
@@ -78,51 +109,82 @@ def generate_html():
         .flipped {{
             transform: rotateY(180deg);
         }}
+        /* Cyber glow & border utilities */
+        .glow-cyan {{
+            box-shadow: 0 0 25px -4px rgba(0, 240, 255, 0.28);
+        }}
+        .glow-purple {{
+            box-shadow: 0 0 25px -4px rgba(168, 85, 247, 0.3);
+        }}
+        .glow-emerald {{
+            box-shadow: 0 0 20px -3px rgba(0, 255, 170, 0.25);
+        }}
+        .glow-border-cyan {{
+            border-color: rgba(0, 240, 255, 0.45);
+            box-shadow: 0 0 15px -3px rgba(0, 240, 255, 0.2);
+        }}
         /* Custom scrollbar */
         ::-webkit-scrollbar {{
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
         }}
         ::-webkit-scrollbar-track {{
-            background: #0a0f1d;
+            background: #090f1f;
         }}
         ::-webkit-scrollbar-thumb {{
             background: #1e293b;
             border-radius: 4px;
         }}
         ::-webkit-scrollbar-thumb:hover {{
-            background: #0284c7;
+            background: #0ea5e9;
         }}
-        .glow-cyan {{
-            box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.25);
+        /* Option radio styling */
+        .option-card {{
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }}
-        .glow-border-cyan {{
-            border-color: rgba(0, 240, 255, 0.4);
-            box-shadow: 0 0 15px -3px rgba(0, 240, 255, 0.15);
+        .option-card:hover:not(.locked) {{
+            transform: translateY(-1px);
+        }}
+        /* Floating HUD animation */
+        #floatingHUD {{
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }}
+        /* Print styles */
+        @media print {{
+            header, #floatingHUD, .lec-nav-btn, .tab-btn, button {{
+                display: none !important;
+            }}
+            body {{
+                background: white !important;
+                color: black !important;
+            }}
+            .tab-panel {{
+                display: block !important;
+            }}
         }}
     </style>
 </head>
-<body class="bg-[#070b13] text-slate-200 min-h-screen flex flex-col antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+<body class="bg-[#050811] text-slate-200 min-h-screen flex flex-col antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
 
     <!-- Top Sticky Header -->
-    <header class="sticky top-0 z-50 bg-[#070b13]/90 backdrop-blur-md border-b border-slate-800/80">
+    <header class="sticky top-0 z-50 bg-[#050811]/90 backdrop-blur-xl border-b border-slate-800/80 shadow-lg shadow-black/40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <!-- Brand / Logo -->
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20 font-mono text-lg border border-cyan-400/40">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchLecture(0)">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/25 font-mono text-lg border border-cyan-300/40 transform hover:scale-105 transition-transform">
                         🛡️
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="font-bold text-lg tracking-tight text-white font-mono">Cyber<span class="text-cyan-400">Tutor</span></span>
-                            <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">Exam Coach</span>
+                            <span class="font-extrabold text-lg tracking-tight text-white font-mono">Cyber<span class="text-cyan-400">Tutor</span></span>
+                            <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-500/50 text-cyan-300">Exam Coach</span>
                         </div>
                         <p class="text-[11px] text-slate-400 hidden sm:block">Ain Shams University · Dr. Alshaimaa Abo-alian</p>
                     </div>
                 </div>
 
-                <!-- Lecture Selector Navigation -->
+                <!-- Navigation Tabs (5 Lectures + Shuffled 100Q Exam Simulator) -->
                 <nav class="hidden md:flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800" id="lectureNav">
                     <button onclick="switchLecture(0)" id="nav-btn-0" class="lec-nav-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm">
                         L1: Intro
@@ -139,64 +201,84 @@ def generate_html():
                     <button onclick="switchLecture(4)" id="nav-btn-4" class="lec-nav-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent">
                         L5: Access
                     </button>
+                    
+                    <!-- SPECIAL SHUFFLE SIMULATOR TAB -->
+                    <button onclick="switchToSimulator()" id="nav-btn-sim" class="lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-purple-300 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 flex items-center gap-1.5 ml-1">
+                        <span class="inline-block animate-spin" style="animation-duration: 6s;">🎲</span>
+                        <span>100Q Simulator</span>
+                        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                    </button>
                 </nav>
 
-                <!-- Search and Stats Badge -->
+                <!-- Search and Live Global Score -->
                 <div class="flex items-center gap-3">
-                    <div class="relative hidden lg:block w-48 xl:w-60">
-                        <input type="text" id="globalSearch" placeholder="Search concept (e.g. BLP, FAR, CVE)..." 
-                            class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 font-mono"
+                    <div class="relative hidden lg:block w-48 xl:w-56">
+                        <input type="text" id="globalSearch" placeholder="Search (BLP, FAR, CVE)..." 
+                            class="w-full bg-slate-900/90 border border-slate-700/80 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 font-mono"
                             oninput="handleSearch(this.value)">
                         <span class="absolute right-2.5 top-2 text-slate-500 text-xs">🔍</span>
                     </div>
-                    <div class="px-2.5 py-1 bg-slate-900 rounded-lg border border-slate-800 text-[11px] font-mono text-cyan-400 hidden sm:flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>100 MCQs Total</span>
+
+                    <!-- Live Overall Answered Counter -->
+                    <div id="headerOverallStats" class="px-3 py-1 bg-slate-900/90 rounded-lg border border-slate-800 text-[11px] font-mono flex items-center gap-2 cursor-pointer" onclick="switchToSimulator()" title="Click to view full exam simulator">
+                        <span class="flex items-center gap-1 text-emerald-400 font-bold" id="headerScoreLive">
+                            <span>⚡</span> <span id="headerCorrectCount">0</span>/100
+                        </span>
+                        <span class="text-slate-500">|</span>
+                        <span class="text-cyan-400 font-medium" id="headerAccuracyLive">0% Acc</span>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile lecture scroll bar -->
-            <div class="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-slate-800/60 -mx-4 px-4 scrollbar-none" id="mobileLectureNav">
+            <div class="flex md:hidden overflow-x-auto py-2.5 gap-2 border-t border-slate-800/60 -mx-4 px-4 scrollbar-none" id="mobileLectureNav">
                 <button onclick="switchLecture(0)" id="m-nav-btn-0" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">L1: Intro</button>
                 <button onclick="switchLecture(1)" id="m-nav-btn-1" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L2: Threats</button>
                 <button onclick="switchLecture(2)" id="m-nav-btn-2" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L3: Crypto</button>
                 <button onclick="switchLecture(3)" id="m-nav-btn-3" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L4: Auth</button>
                 <button onclick="switchLecture(4)" id="m-nav-btn-4" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L5: Access</button>
+                <button onclick="switchToSimulator()" id="m-nav-btn-sim" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-purple-950/60 text-purple-300 border border-purple-500/40 font-semibold">🎲 100Q Exam</button>
             </div>
         </div>
     </header>
 
     <!-- Hero / Course Banner -->
-    <div class="relative bg-gradient-to-b from-[#0a0f1d] to-[#070b13] border-b border-slate-800/80 py-8 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-7xl mx-auto">
+    <div class="relative bg-gradient-to-b from-[#090f1f] via-[#070c1a] to-[#050811] border-b border-slate-800/80 py-7 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div class="absolute -right-20 -top-20 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -left-20 -bottom-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto relative z-10">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div>
-                    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-mono mb-3">
-                        <span>🎓 Ain Shams University</span>
-                        <span>•</span>
-                        <span>Faculty of Computers & Information Sciences</span>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 text-xs font-mono mb-2.5">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                        <span>🎓 Ain Shams University · Faculty of Computers & Information Sciences</span>
                     </div>
                     <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white mb-2">
                         Cybersecurity <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400">Mastery & Exam Coach</span>
                     </h1>
-                    <p class="text-slate-400 text-sm max-w-3xl leading-relaxed">
-                        Complete university lecture guides, fast-track memory aids, and 100 high-yield multiple-choice questions (20 per lecture) based strictly on Dr. Alshaimaa Abo-alian's curriculum.
+                    <p class="text-slate-400 text-xs sm:text-sm max-w-3xl leading-relaxed">
+                        Complete curriculum guides, high-speed flashcards, and 100 rigorous MCQs with <strong class="text-cyan-300">instant real-time evaluation</strong> based strictly on Dr. Alshaimaa Abo-alian's university course.
                     </p>
                 </div>
+
                 <!-- Quick Exam Metrics Cards -->
-                <div class="grid grid-cols-3 gap-2.5 text-center shrink-0">
-                    <div class="p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
-                        <div class="text-xl font-bold font-mono text-cyan-400">5</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Lectures</div>
+                <div class="grid grid-cols-4 gap-2 text-center shrink-0">
+                    <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-cyan-500/40 transition-colors">
+                        <div class="text-lg sm:text-xl font-bold font-mono text-cyan-400">5</div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Lectures</div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
-                        <div class="text-xl font-bold font-mono text-emerald-400">100</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">MCQ Tests</div>
+                    <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-emerald-500/40 transition-colors">
+                        <div class="text-lg sm:text-xl font-bold font-mono text-emerald-400">100</div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">MCQ Tests</div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
-                        <div class="text-xl font-bold font-mono text-amber-400">40+</div>
-                        <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Flashcards</div>
+                    <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-purple-500/40 transition-colors">
+                        <div class="text-lg sm:text-xl font-bold font-mono text-purple-400" id="heroStreakDisplay">🔥 0</div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Best Streak</div>
+                    </div>
+                    <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-amber-500/40 transition-colors">
+                        <div class="text-lg sm:text-xl font-bold font-mono text-amber-400" id="heroMasteredCount">0/42</div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Mastered</div>
                     </div>
                 </div>
             </div>
@@ -204,101 +286,250 @@ def generate_html():
     </div>
 
     <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Current Lecture Header Card -->
-        <div class="mb-6 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0c1527] border border-slate-800 glow-border-cyan relative overflow-hidden">
-            <div class="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-cyan-500/5 to-transparent pointer-events-none"></div>
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: INDIVIDUAL LECTURE MODE (L1 - L5)  -->
+        <!-- ========================================== -->
+        <div id="view-lecture" class="space-y-6">
             
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <span id="currentLecBadge" class="inline-block px-3 py-1 rounded-md bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 font-mono text-xs font-semibold mb-2">
-                        L1: Foundations & Core Concepts
-                    </span>
-                    <h2 id="currentLecTitle" class="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                        Lecture 1: Introduction to Cybersecurity
-                    </h2>
-                    <p id="currentLecMeta" class="text-xs text-slate-400 font-mono mt-1">
-                        Instructor: Dr. Alshaimaa Abo-alian · Ain Shams University
-                    </p>
+            <!-- Current Lecture Header Card -->
+            <div class="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0d162d] border border-slate-800 glow-border-cyan relative overflow-hidden">
+                <div class="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none"></div>
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+                    <div>
+                        <span id="currentLecBadge" class="inline-block px-3 py-1 rounded-md bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 font-mono text-xs font-semibold mb-2">
+                            L1: Foundations & Core Concepts
+                        </span>
+                        <h2 id="currentLecTitle" class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                            Lecture 1: Introduction to Cybersecurity
+                        </h2>
+                        <p id="currentLecMeta" class="text-xs text-slate-400 font-mono mt-1">
+                            Instructor: Dr. Alshaimaa Abo-alian · Ain Shams University
+                        </p>
+                    </div>
+
+                    <!-- Lecture Content Switcher Tabs (Summary / Memory / Quiz) -->
+                    <div class="flex items-center gap-1.5 p-1.5 bg-slate-950/80 border border-slate-800 rounded-xl shrink-0 self-start md:self-auto">
+                        <button onclick="switchTab('summary')" id="tab-btn-summary" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md">
+                            📖 Summary
+                        </button>
+                        <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800">
+                            🧠 Memory Aids
+                        </button>
+                        <button onclick="switchTab('mcq')" id="tab-btn-mcq" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5">
+                            <span>🎯 Quiz</span>
+                            <span id="tabQuizPill" class="px-1.5 py-0.2 bg-cyan-950 text-cyan-300 border border-cyan-600/40 rounded text-[10px] font-mono">20 Qs</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: SIMPLIFIED SUMMARY -->
+            <section id="panel-summary" class="tab-panel">
+                <div id="summaryContainer">
+                    <!-- Dynamically injected summary HTML -->
+                </div>
+            </section>
+
+            <!-- TAB 2: MEMORY & MEMORIZATION AIDS -->
+            <section id="panel-memory" class="tab-panel hidden space-y-6">
+                <!-- Flashcard Controls Toolbar -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
+                                <span>⚡</span> High-Speed Recall Flashcards
+                            </h3>
+                            <span id="flashcardMasteryPill" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40">
+                                0 Mastered
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">Click any card to flip. Click the ⭐ star to mark concepts as mastered.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="flipAllCards()" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-cyan-300 border border-slate-700 transition-colors">
+                            🔄 Flip All
+                        </button>
+                        <button onclick="resetAllCards()" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 transition-colors">
+                            ↩️ Reset Flips
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Lecture Content Switcher Tabs (Summary / Memory / Quiz) -->
-                <div class="flex items-center gap-1.5 p-1.5 bg-slate-950/80 border border-slate-800 rounded-xl shrink-0">
-                    <button onclick="switchTab('summary')" id="tab-btn-summary" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md">
-                        📖 Summary
+                <!-- Flashcards Grid -->
+                <div id="flashcardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Injected via JavaScript -->
+                </div>
+            </section>
+
+            <!-- TAB 3: MULTIPLE CHOICE QUESTIONS (MCQ QUIZ WITH INSTANT FEEDBACK) -->
+            <section id="panel-mcq" class="tab-panel hidden space-y-6">
+                <!-- Lecture Quiz Header & Stats HUD -->
+                <div class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                                <span class="text-cyan-400">20 High-Yield MCQs</span>
+                            </h3>
+                            <span id="lecQuizLiveScore" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
+                                0 / 20 Correct (0%)
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">
+                            <span class="text-emerald-400 font-semibold">⚡ Instant Feedback Enabled:</span> Select any answer and it immediately reveals correctness with detailed justification.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="resetCurrentLectureQuiz()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold text-slate-300 text-xs font-mono border border-slate-700 transition-colors flex items-center gap-1.5">
+                            <span>🔄 Reset Quiz</span>
+                        </button>
+                        <button onclick="revealAllLectureExplanations()" class="px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 font-semibold text-cyan-300 text-xs font-mono border border-cyan-500/30 transition-colors flex items-center gap-1.5">
+                            <span>👀 Reveal All Explanations</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Jump Question Navigator Pills (1 to 20) -->
+                <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider font-semibold">Quick Jump Navigator (20 Questions):</span>
+                        <div class="flex items-center gap-3 text-[11px] font-mono">
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Correct</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Incorrect</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block"></span> Unanswered</span>
+                        </div>
+                    </div>
+                    <div id="lecQuestionNavGrid" class="flex flex-wrap gap-1.5">
+                        <!-- Numbered pills 1..20 injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Questions Container -->
+                <div id="questionsContainer" class="space-y-4">
+                    <!-- 20 Question Cards Injected via JS -->
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 2: GLOBAL 100-QUESTION SHUFFLED EXAM SIMULATOR (ALL LECS) -->
+        <!-- ============================================================== -->
+        <div id="view-simulator" class="hidden space-y-6">
+
+            <!-- Simulator Header Card -->
+            <div class="p-6 rounded-2xl bg-gradient-to-r from-purple-950/60 via-slate-900 to-indigo-950/50 border border-purple-500/40 glow-purple relative overflow-hidden">
+                <div class="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-purple-500/10 to-transparent pointer-events-none"></div>
+
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-purple-950/90 border border-purple-500/50 text-purple-300 font-mono text-xs font-semibold mb-2">
+                            <span>🎲 All 5 Lectures Aggregated</span>
+                            <span>•</span>
+                            <span id="simulatorSeedBadge">Randomized Exam Order</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                            <span>All-Lectures Grand Exam Simulator</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-300 font-mono mt-1 max-w-2xl">
+                            100 high-yield questions sampled randomly across Lectures 1 through 5. Every question provides instant visual feedback, lecture citations, and full justifications.
+                        </p>
+                    </div>
+
+                    <!-- Simulator Main Controls -->
+                    <div class="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
+                        <button onclick="reshuffleSimulatorQuestions()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs font-mono shadow-lg shadow-purple-600/25 transition-all flex items-center gap-2">
+                            <span>🔀 Reshuffle Order</span>
+                        </button>
+                        <button onclick="resetSimulatorProgress()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs font-mono border border-slate-700 transition-colors flex items-center gap-1.5">
+                            <span>🔄 Reset All</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulator Filter & Stats Toolbar -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <!-- Status Filter Chips -->
+                <div class="flex flex-wrap items-center gap-1.5" id="simFilterChips">
+                    <button onclick="setSimFilter('all')" id="sim-flt-all" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all bg-cyan-500 text-slate-950 font-bold">
+                        All (<span id="simCountAll">100</span>)
                     </button>
-                    <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800">
-                        🧠 Memory Aids
+                    <button onclick="setSimFilter('unanswered')" id="sim-flt-unanswered" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all text-slate-400 hover:bg-slate-800 border border-slate-800">
+                        Unanswered (<span id="simCountUnanswered">100</span>)
                     </button>
-                    <button onclick="switchTab('mcq')" id="tab-btn-mcq" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5">
-                        <span>🎯 Quiz</span>
-                        <span class="px-1.5 py-0.2 bg-cyan-950 text-cyan-300 border border-cyan-600/40 rounded text-[10px] font-mono">20 Qs</span>
+                    <button onclick="setSimFilter('incorrect')" id="sim-flt-incorrect" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all text-rose-400 hover:bg-slate-800 border border-slate-800">
+                        Missed / Review (<span id="simCountIncorrect">0</span>)
+                    </button>
+                    <button onclick="setSimFilter('correct')" id="sim-flt-correct" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all text-emerald-400 hover:bg-slate-800 border border-slate-800">
+                        Correct (<span id="simCountCorrect">0</span>)
                     </button>
                 </div>
+
+                <!-- Lecture Filter Dropdown -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-slate-400">Source:</span>
+                    <select id="simLecFilterSelect" onchange="setSimLectureFilter(this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+                        <option value="all">All Lectures (1 - 5)</option>
+                        <option value="1">Lecture 1: Intro</option>
+                        <option value="2">Lecture 2: Threats</option>
+                        <option value="3">Lecture 3: Crypto</option>
+                        <option value="4">Lecture 4: Auth</option>
+                        <option value="5">Lecture 5: Access</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Simulator 100-Question Jump Matrix (Collapsible) -->
+            <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-mono text-slate-300 font-semibold uppercase tracking-wider">Exam Matrix (100 Questions):</span>
+                        <span id="simMatrixProgress" class="text-xs font-mono text-cyan-400">0 answered</span>
+                    </div>
+                    <button onclick="toggleMatrixExpand()" id="matrixToggleBtn" class="text-xs font-mono text-slate-400 hover:text-cyan-300">
+                        ▲ Collapse Matrix
+                    </button>
+                </div>
+                <div id="simMatrixContainer" class="flex flex-wrap gap-1 max-h-48 overflow-y-auto pr-1">
+                    <!-- 100 mini pills injected via JS -->
+                </div>
+            </div>
+
+            <!-- Shuffled Questions List -->
+            <div id="simQuestionsContainer" class="space-y-4">
+                <!-- 100 Shuffled Question Cards Injected via JS -->
             </div>
         </div>
 
-        <!-- TAB 1: SIMPLIFIED SUMMARY -->
-        <section id="panel-summary" class="tab-panel">
-            <div id="summaryContainer">
-                <!-- Dynamically injected summary HTML -->
-            </div>
-        </section>
-
-        <!-- TAB 2: MEMORY & MEMORIZATION AIDS -->
-        <section id="panel-memory" class="tab-panel hidden space-y-6">
-            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
-                        <span>⚡</span> Fast-Recall Flashcards
-                    </h3>
-                    <p class="text-xs text-slate-400">Click any card to flip and reveal the golden rule / core definition.</p>
-                </div>
-                <button onclick="flipAllCards()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-cyan-300 border border-slate-700">
-                    🔄 Flip All
-                </button>
-            </div>
-
-            <!-- Flashcards Grid -->
-            <div id="flashcardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Injected via JavaScript -->
-            </div>
-        </section>
-
-        <!-- TAB 3: MULTIPLE CHOICE QUESTIONS (MCQ QUIZ) -->
-        <section id="panel-mcq" class="tab-panel hidden space-y-6">
-            <!-- Quiz Controls Header -->
-            <div class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-xl font-bold text-cyan-400">20 High-Yield Exam MCQs</h3>
-                        <span id="quizScoreBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-600/50">
-                            Score: 0/20
-                        </span>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-1">Select your answers below and click "Grade Quiz" to view detailed explanations.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="gradeCurrentQuiz()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-slate-950 text-xs font-mono transition-all shadow-lg shadow-cyan-500/20">
-                        ⚡ Grade Quiz & Show Explanations
-                    </button>
-                    <button onclick="resetCurrentQuiz()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold text-slate-300 text-xs font-mono border border-slate-700">
-                        Reset
-                    </button>
-                </div>
-            </div>
-
-            <!-- Questions Container -->
-            <div id="questionsContainer" class="space-y-4">
-                <!-- 20 Question Cards Injected via JS -->
-            </div>
-        </section>
-
     </main>
 
+    <!-- FLOATING REAL-TIME HUD (Appears when taking quizzes) -->
+    <div id="floatingHUD" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 backdrop-blur-md border border-slate-800 rounded-2xl px-5 py-3 shadow-2xl shadow-black/80 flex items-center gap-4 sm:gap-6 max-w-[95vw]">
+        <div class="flex items-center gap-2 font-mono text-xs">
+            <span class="text-slate-400">Solved:</span>
+            <span id="hudAnswered" class="font-bold text-white">0/20</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800"></div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+            <span class="text-slate-400">Score:</span>
+            <span id="hudScore" class="font-bold text-emerald-400">0</span>
+            <span id="hudAccuracy" class="text-cyan-400 text-[11px]">(0%)</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800"></div>
+        <div class="flex items-center gap-1.5 font-mono text-xs">
+            <span id="hudStreakFlame" class="text-sm">🔥</span>
+            <span id="hudStreak" class="font-bold text-amber-400">0 Streak</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800 hidden sm:block"></div>
+        <button onclick="scrollToTop()" class="hidden sm:flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-cyan-300 transition-colors">
+            <span>↑ Top</span>
+        </button>
+    </div>
+
     <!-- Footer -->
-    <footer class="mt-16 border-t border-slate-800/80 bg-slate-950/80 py-8 px-4 sm:px-6 lg:px-8 text-xs text-slate-400">
+    <footer class="mt-16 border-t border-slate-800/80 bg-slate-950/90 py-8 px-4 sm:px-6 lg:px-8 text-xs text-slate-400">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-2">
                 <span class="font-mono text-cyan-400 font-bold">CyberTutor Portal</span>
@@ -306,7 +537,7 @@ def generate_html():
                 <span>Faculty of Computers & Information Sciences, Ain Shams University</span>
             </div>
             <div>
-                Lectures by <strong class="text-slate-300">Dr. Alshaimaa Abo-alian</strong>
+                Lectures strictly from <strong class="text-slate-300">Dr. Alshaimaa Abo-alian</strong>
             </div>
         </div>
     </footer>
@@ -315,26 +546,114 @@ def generate_html():
     <script>
         const LECTURES_DATA = {lectures_json};
         
+        // Application State
+        let currentMode = 'lecture'; // 'lecture' or 'simulator'
         let currentLecIndex = 0;
-        let currentTab = 'summary';
-        let userAnswers = {{}}; // format: {{ "lecIndex_qIndex": "A" }}
-        let quizGraded = {{}}; // format: {{ "lecIndex": true/false }}
+        let currentTab = 'summary'; // 'summary', 'memory', 'mcq'
+        
+        // Storage keys
+        const STORAGE_KEY_ANSWERS = 'cybertutor_v2_answers';
+        const STORAGE_KEY_MASTERED = 'cybertutor_v2_mastered';
+        
+        // userAnswers: {{ "globalKey": {{ ans: "A", isCorrect: true }} }}
+        let userAnswers = JSON.parse(localStorage.getItem(STORAGE_KEY_ANSWERS) || '{{}}');
+        // masteredCards: {{ "cardKey": true }}
+        let masteredCards = JSON.parse(localStorage.getItem(STORAGE_KEY_MASTERED) || '{{}}');
+        
+        // Streak counter
+        let currentStreak = 0;
+        let bestStreak = 0;
 
-        // Switch active lecture
+        // Simulator State
+        let simulatorQuestions = [];
+        let simCurrentFilter = 'all'; // 'all', 'unanswered', 'incorrect', 'correct'
+        let simCurrentLecFilter = 'all'; // 'all', '1'..'5'
+        let matrixExpanded = true;
+
+        // Initialize Simulator Questions Array
+        function initSimulatorData() {{
+            simulatorQuestions = [];
+            LECTURES_DATA.forEach((lec, lIdx) => {{
+                lec.mcqs.forEach((mcq, qIdx) => {{
+                    simulatorQuestions.push({{
+                        ...mcq,
+                        lecIndex: lIdx,
+                        qIndex: qIdx,
+                        globalKey: `${{lIdx}}_${{qIdx}}`,
+                        lecNumber: lec.number,
+                        lecTitle: lec.title,
+                        lecBadge: lec.badge
+                    }});
+                }});
+            }});
+        }}
+
+        // Fisher-Yates Shuffle
+        function shuffleArray(arr) {{
+            const shuffled = [...arr];
+            for (let i = shuffled.length - 1; i > 0; i--) {{
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }}
+            return shuffled;
+        }}
+
+        // ==========================================
+        // NAVIGATION & VIEW SWITCHING
+        // ==========================================
+
         function switchLecture(index) {{
+            currentMode = 'lecture';
             currentLecIndex = index;
             const lec = LECTURES_DATA[index];
 
-            // Update Header
+            // Show Lecture view, hide simulator
+            document.getElementById('view-lecture').classList.remove('hidden');
+            document.getElementById('view-simulator').classList.add('hidden');
+
+            // Update Header Title & Meta
             document.getElementById('currentLecBadge').innerText = lec.badge;
             document.getElementById('currentLecTitle').innerText = `Lecture ${{lec.number}}: ${{lec.title}}`;
             document.getElementById('currentLecMeta').innerText = `Instructor: ${{lec.instructor}} · ${{lec.faculty}}`;
 
-            // Update Nav Buttons desktop & mobile
+            // Update Nav styling
+            updateNavPills();
+
+            // Render sub-sections
+            renderSummary();
+            renderFlashcards();
+            renderLectureMCQs();
+            updateAllStats();
+
+            // Scroll top smoothly
+            window.scrollTo({{ top: 0, behavior: 'smooth' }});
+        }}
+
+        function switchToSimulator() {{
+            currentMode = 'simulator';
+            
+            // Show Simulator view, hide lecture
+            document.getElementById('view-lecture').classList.add('hidden');
+            document.getElementById('view-simulator').classList.remove('hidden');
+
+            updateNavPills();
+
+            if (simulatorQuestions.length === 0) {{
+                initSimulatorData();
+                simulatorQuestions = shuffleArray(simulatorQuestions);
+            }}
+
+            renderSimulatorView();
+            updateAllStats();
+            window.scrollTo({{ top: 0, behavior: 'smooth' }});
+        }}
+
+        function updateNavPills() {{
+            // Desktop nav buttons
             for (let i = 0; i < 5; i++) {{
                 const btn = document.getElementById(`nav-btn-${{i}}`);
                 const mBtn = document.getElementById(`m-nav-btn-${{i}}`);
-                if (i === index) {{
+                if (currentMode === 'lecture' && i === currentLecIndex) {{
                     btn.className = "lec-nav-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm";
                     if (mBtn) mBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40";
                 }} else {{
@@ -343,17 +662,18 @@ def generate_html():
                 }}
             }}
 
-            // Render Content
-            renderSummary();
-            renderFlashcards();
-            renderMCQs();
-            updateQuizBadge();
-
-            // Scroll top slightly
-            window.scrollTo({{ top: 0, behavior: 'smooth' }});
+            // Simulator button
+            const simBtn = document.getElementById('nav-btn-sim');
+            const mSimBtn = document.getElementById('m-nav-btn-sim');
+            if (currentMode === 'simulator') {{
+                simBtn.className = "lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all duration-200 text-white bg-purple-600 border border-purple-400 shadow-md shadow-purple-500/30 flex items-center gap-1.5 ml-1";
+                if (mSimBtn) mSimBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-purple-600 text-white border border-purple-400 font-bold";
+            }} else {{
+                simBtn.className = "lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-purple-300 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 flex items-center gap-1.5 ml-1";
+                if (mSimBtn) mSimBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-purple-950/60 text-purple-300 border border-purple-500/40 font-semibold";
+            }}
         }}
 
-        // Switch active tab (summary, memory, mcq)
         function switchTab(tabId) {{
             currentTab = tabId;
             const tabs = ['summary', 'memory', 'mcq'];
@@ -368,31 +688,49 @@ def generate_html():
                     btn.className = "tab-btn px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white hover:bg-slate-800";
                 }}
             }});
+            updateFloatingHUD();
         }}
 
-        // Render Summary
+        // ==========================================
+        // SUMMARY TAB
+        // ==========================================
+
         function renderSummary() {{
             const lec = LECTURES_DATA[currentLecIndex];
             document.getElementById('summaryContainer').innerHTML = lec.summary_html;
         }}
 
-        // Render Flashcards
+        // ==========================================
+        // FLASHCARDS & MEMORY AIDS
+        // ==========================================
+
         function renderFlashcards() {{
             const lec = LECTURES_DATA[currentLecIndex];
             const container = document.getElementById('flashcardsGrid');
             container.innerHTML = '';
 
+            let masteredCount = 0;
+
             lec.memory_aids.forEach((aid, idx) => {{
+                const cardKey = `${{currentLecIndex}}_${{idx}}`;
+                const isMastered = !!masteredCards[cardKey];
+                if (isMastered) masteredCount++;
+
                 const card = document.createElement('div');
-                card.className = "perspective-1000 h-52 cursor-pointer select-none group";
-                card.onclick = () => toggleCardFlip(card);
+                card.className = "perspective-1000 h-56 cursor-pointer select-none group relative";
+                card.id = `flashcard-${{cardKey}}`;
 
                 card.innerHTML = `
-                    <div class="card-inner relative w-full h-full duration-500 transform-style-3d rounded-xl transition-transform border border-slate-800 group-hover:border-cyan-500/50">
+                    <div class="card-inner relative w-full h-full duration-500 transform-style-3d rounded-xl transition-transform border ${{isMastered ? 'border-amber-500/60' : 'border-slate-800'}} group-hover:border-cyan-500/50">
                         <!-- Front -->
-                        <div class="absolute inset-0 w-full h-full bg-slate-900/90 rounded-xl p-5 flex flex-col justify-between backface-hidden border border-slate-800">
+                        <div class="absolute inset-0 w-full h-full bg-slate-900/90 rounded-xl p-5 flex flex-col justify-between backface-hidden border border-slate-800" onclick="toggleCardFlip(this.parentElement)">
                             <div>
-                                <span class="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block mb-2">Rule #${{idx + 1}}</span>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">Rule #${{idx + 1}}</span>
+                                    <button onclick="event.stopPropagation(); toggleMasterCard('${{cardKey}}')" class="text-xs p-1 rounded hover:bg-slate-800 transition-colors" title="${{isMastered ? 'Unmark Mastered' : 'Mark as Mastered'}}">
+                                        <span class="${{isMastered ? 'text-amber-400' : 'text-slate-600 hover:text-amber-300'}}">★</span>
+                                    </button>
+                                </div>
                                 <h4 class="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">${{aid.title}}</h4>
                             </div>
                             <div class="text-[11px] text-slate-500 font-mono flex items-center justify-between">
@@ -401,148 +739,543 @@ def generate_html():
                             </div>
                         </div>
                         <!-- Back -->
-                        <div class="absolute inset-0 w-full h-full bg-[#0d162a] rounded-xl p-5 flex flex-col justify-between rotate-y-180 backface-hidden border border-cyan-500/40 glow-border-cyan">
+                        <div class="absolute inset-0 w-full h-full bg-[#091224] rounded-xl p-5 flex flex-col justify-between rotate-y-180 backface-hidden border border-cyan-500/40 glow-border-cyan" onclick="toggleCardFlip(this.parentElement)">
                             <div>
-                                <span class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest block mb-1">Key Definition</span>
-                                <p class="text-xs text-slate-200 leading-relaxed">${{aid.content}}</p>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest font-semibold">Key Takeaway</span>
+                                    <button onclick="event.stopPropagation(); toggleMasterCard('${{cardKey}}')" class="text-xs p-1 rounded hover:bg-slate-800 transition-colors">
+                                        <span class="${{isMastered ? 'text-amber-400' : 'text-slate-600 hover:text-amber-300'}}">★</span>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-slate-200 leading-relaxed font-sans">${{aid.content}}</p>
                             </div>
-                            <div class="text-[10px] text-slate-500 font-mono text-right">Click to flip back</div>
+                            <div class="text-[10px] text-slate-500 font-mono text-right">Click to flip back ↻</div>
                         </div>
                     </div>
                 `;
                 container.appendChild(card);
             }});
+
+            document.getElementById('flashcardMasteryPill').innerText = `${{masteredCount}} / ${{lec.memory_aids.length}} Mastered`;
+            updateTotalMasteredHero();
         }}
 
-        function toggleCardFlip(card) {{
-            const inner = card.querySelector('.card-inner');
-            inner.classList.toggle('flipped');
+        function toggleCardFlip(innerEl) {{
+            innerEl.classList.toggle('flipped');
         }}
 
         function flipAllCards() {{
-            const cards = document.querySelectorAll('.card-inner');
+            const cards = document.querySelectorAll('#flashcardsGrid .card-inner');
             cards.forEach(c => c.classList.toggle('flipped'));
         }}
 
-        // Render MCQs
-        function renderMCQs() {{
+        function resetAllCards() {{
+            const cards = document.querySelectorAll('#flashcardsGrid .card-inner');
+            cards.forEach(c => c.classList.remove('flipped'));
+        }}
+
+        function toggleMasterCard(cardKey) {{
+            if (masteredCards[cardKey]) {{
+                delete masteredCards[cardKey];
+            }} else {{
+                masteredCards[cardKey] = true;
+            }}
+            localStorage.setItem(STORAGE_KEY_MASTERED, JSON.stringify(masteredCards));
+            renderFlashcards();
+        }}
+
+        function updateTotalMasteredHero() {{
+            let count = Object.keys(masteredCards).length;
+            const el = document.getElementById('heroMasteredCount');
+            if (el) el.innerText = `${{count}}/42`;
+        }}
+
+        // ==========================================
+        // INSTANT FEEDBACK MCQ ENGINE (CORE FEATURE)
+        // ==========================================
+
+        // Render Lecture MCQs (20 Qs)
+        function renderLectureMCQs() {{
             const lec = LECTURES_DATA[currentLecIndex];
             const container = document.getElementById('questionsContainer');
+            const navGrid = document.getElementById('lecQuestionNavGrid');
             container.innerHTML = '';
-
-            const isGraded = quizGraded[currentLecIndex] || false;
+            navGrid.innerHTML = '';
 
             lec.mcqs.forEach((mcq, qIdx) => {{
-                const qKey = `${{currentLecIndex}}_${{qIdx}}`;
-                const selectedAns = userAnswers[qKey];
-                const isCorrect = selectedAns === mcq.ans;
+                const globalKey = `${{currentLecIndex}}_${{qIdx}}`;
+                const answeredData = userAnswers[globalKey];
 
-                let cardBorder = "border-slate-800";
-                if (isGraded) {{
-                    cardBorder = isCorrect ? "border-emerald-500/50 bg-emerald-950/10" : "border-rose-500/50 bg-rose-950/10";
-                }}
-
-                const qCard = document.createElement('div');
-                qCard.className = `p-5 rounded-xl bg-slate-900/80 border ${{cardBorder}} transition-all`;
-
-                let optionsHtml = '';
-                const letters = ['A', 'B', 'C', 'D'];
-                mcq.options.forEach((opt, optIdx) => {{
-                    const letter = letters[optIdx];
-                    const isChecked = selectedAns === letter;
-                    
-                    let optStyle = "border-slate-800 hover:border-slate-700 bg-slate-800/40 text-slate-300";
-                    if (isChecked) {{
-                        optStyle = "border-cyan-500 bg-cyan-950/30 text-white font-medium";
-                    }}
-                    if (isGraded) {{
-                        if (letter === mcq.ans) {{
-                            optStyle = "border-emerald-500 bg-emerald-950/40 text-emerald-200 font-semibold";
-                        }} else if (isChecked && letter !== mcq.ans) {{
-                            optStyle = "border-rose-500 bg-rose-950/40 text-rose-200";
-                        }}
-                    }}
-
-                    optionsHtml += `
-                        <label class="flex items-center gap-3 p-3 rounded-lg border ${{optStyle}} cursor-pointer transition-all text-xs">
-                            <input type="radio" name="q_${{currentLecIndex}}_${{qIdx}}" value="${{letter}}" 
-                                ${{isChecked ? 'checked' : ''}} 
-                                onchange="selectAnswer(${{currentLecIndex}}, ${{qIdx}}, '${{letter}}')" 
-                                class="w-4 h-4 text-cyan-500 bg-slate-800 border-slate-700 focus:ring-cyan-500 focus:ring-1">
-                            <span class="font-mono font-bold text-slate-400">${{letter}}.</span>
-                            <span class="flex-1">${{opt}}</span>
-                        </label>
-                    `;
+                // 1. Build Question Card
+                const qCard = buildQuestionCardHtml({{
+                    globalKey: globalKey,
+                    displayNum: qIdx + 1,
+                    mcq: mcq,
+                    answeredData: answeredData,
+                    sourceBadge: `Question #${{mcq.id}}`,
+                    cardPrefix: `lec_q_${{currentLecIndex}}_${{qIdx}}`
                 }});
+                container.appendChild(qCard);
 
-                let explanationHtml = '';
-                if (isGraded) {{
-                    explanationHtml = `
-                        <div class="mt-4 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="font-mono font-bold ${{isCorrect ? 'text-emerald-400' : 'text-rose-400'}}">
-                                    ${{isCorrect ? '✅ Correct' : '❌ Incorrect (Correct: ' + mcq.ans + ')'}}
-                                </span>
-                            </div>
-                            <p class="text-slate-300 leading-relaxed">${{mcq.explanation}}</p>
-                        </div>
-                    `;
+                // 2. Build Navigator Pill
+                const navBtn = document.createElement('button');
+                navBtn.id = `lec-nav-pill-${{qIdx}}`;
+                let pillColor = "bg-slate-800 text-slate-400 hover:bg-slate-700";
+                if (answeredData) {{
+                    pillColor = answeredData.isCorrect ? "bg-emerald-600 text-white font-bold" : "bg-rose-600 text-white font-bold";
+                }}
+                navBtn.className = `w-8 h-8 rounded-lg text-xs font-mono flex items-center justify-center transition-all ${{pillColor}}`;
+                navBtn.innerText = qIdx + 1;
+                navBtn.onclick = () => {{
+                    document.getElementById(`lec_q_${{currentLecIndex}}_${{qIdx}}`).scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                }};
+                navGrid.appendChild(navBtn);
+            }});
+
+            updateLectureQuizScoreBadge();
+        }}
+
+        // General reusable function to construct Question Card DOM Element
+        function buildQuestionCardHtml(props) {{
+            const {{ globalKey, displayNum, mcq, answeredData, sourceBadge, cardPrefix }} = props;
+            const card = document.createElement('div');
+            card.id = cardPrefix;
+            card.className = "p-5 rounded-2xl bg-slate-900/90 border border-slate-800 transition-all duration-300 relative";
+
+            const letters = ['A', 'B', 'C', 'D'];
+            let optionsHtml = '';
+
+            letters.forEach((letter, optIdx) => {{
+                const optText = mcq.options[optIdx];
+                let cardStyle = "border-slate-800 bg-slate-800/40 text-slate-300 hover:border-slate-700 hover:bg-slate-800/80";
+                let badgeHtml = `<span class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 font-mono text-xs flex items-center justify-center font-bold text-slate-400">${{letter}}</span>`;
+                let cursorStyle = "cursor-pointer";
+
+                if (answeredData) {{
+                    cursorStyle = "cursor-default pointer-events-none"; // Locked after answer
+                    if (letter === mcq.ans) {{
+                        // True correct answer
+                        cardStyle = "border-emerald-500 bg-emerald-950/60 text-emerald-200 font-medium ring-1 ring-emerald-500/60 glow-emerald";
+                        badgeHtml = `<span class="w-6 h-6 rounded-md bg-emerald-500 text-slate-950 font-mono text-xs flex items-center justify-center font-bold">✓</span>`;
+                    }} else if (answeredData.ans === letter && !answeredData.isCorrect) {{
+                        // User chose this incorrect answer
+                        cardStyle = "border-rose-500 bg-rose-950/60 text-rose-200 ring-1 ring-rose-500/60";
+                        badgeHtml = `<span class="w-6 h-6 rounded-md bg-rose-500 text-white font-mono text-xs flex items-center justify-center font-bold">✗</span>`;
+                    }} else {{
+                        cardStyle = "border-slate-850 bg-slate-900/40 text-slate-500 opacity-60";
+                    }}
                 }}
 
-                qCard.innerHTML = `
-                    <div class="flex items-start justify-between gap-4 mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 rounded bg-slate-800 border border-slate-700 font-mono text-xs flex items-center justify-center font-bold text-cyan-400">
-                                ${{mcq.id}}
-                            </span>
-                            <h4 class="text-sm font-semibold text-slate-100">${{mcq.q}}</h4>
-                        </div>
+                optionsHtml += `
+                    <div onclick="handleInstantAnswer('${{globalKey}}', '${{letter}}', '${{cardPrefix}}')" 
+                         class="option-card p-3 rounded-xl border ${{cardStyle}} ${{cursorStyle}} flex items-center gap-3 text-xs sm:text-sm select-none">
+                        ${{badgeHtml}}
+                        <span class="flex-1">${{optText}}</span>
+                        ${{answeredData && letter === mcq.ans ? '<span class="text-[10px] font-mono uppercase bg-emerald-500 text-slate-950 px-2 py-0.5 rounded font-bold">Correct</span>' : ''}}
+                        ${{answeredData && answeredData.ans === letter && !answeredData.isCorrect ? '<span class="text-[10px] font-mono uppercase bg-rose-500 text-white px-2 py-0.5 rounded font-bold">Your Choice</span>' : ''}}
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                        ${{optionsHtml}}
-                    </div>
-                    ${{explanationHtml}}
                 `;
-
-                container.appendChild(qCard);
             }});
+
+            // Explanation panel (Revealed immediately if answered)
+            let explanationHtml = '';
+            if (answeredData) {{
+                const isCorrect = answeredData.isCorrect;
+                explanationHtml = `
+                    <div class="mt-4 p-4 rounded-xl ${{isCorrect ? 'bg-emerald-950/30 border border-emerald-500/40' : 'bg-rose-950/30 border border-rose-500/40'}} animate-slide-down text-xs sm:text-sm">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <span class="font-mono font-bold ${{isCorrect ? 'text-emerald-400' : 'text-rose-400'}} flex items-center gap-1.5">
+                                <span>${{isCorrect ? '✅ Correct!' : '❌ Incorrect.'}}</span>
+                                <span>Correct Answer: [${{mcq.ans}}]</span>
+                            </span>
+                            <button onclick="retryQuestion('${{globalKey}}', '${{cardPrefix}}')" class="text-[11px] font-mono text-slate-400 hover:text-cyan-300 underline">
+                                Try Again
+                            </button>
+                        </div>
+                        <p class="text-slate-200 leading-relaxed font-sans">${{mcq.explanation}}</p>
+                    </div>
+                `;
+            }}
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs font-bold text-cyan-400">
+                            #${{displayNum}}
+                        </span>
+                        <span class="text-[11px] font-mono text-slate-400">${{sourceBadge}}</span>
+                    </div>
+                    ${{answeredData ? (answeredData.isCorrect ? '<span class="text-xs font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">✓ Solved</span>' : '<span class="text-xs font-mono text-rose-400 font-bold bg-rose-950/80 px-2 py-0.5 rounded border border-rose-500/40">✗ Missed</span>') : '<span class="text-[10px] font-mono text-slate-500">Not Answered</span>'}}
+                </div>
+                <h4 class="text-sm sm:text-base font-semibold text-slate-100 mb-3 leading-snug">${{mcq.q}}</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    ${{optionsHtml}}
+                </div>
+                ${{explanationHtml}}
+            `;
+
+            return card;
         }}
 
-        function selectAnswer(lecIdx, qIdx, answer) {{
-            userAnswers[`${{lecIdx}}_${{qIdx}}`] = answer;
+        // Core Instant Feedback Click Handler
+        function handleInstantAnswer(globalKey, selectedLetter, cardPrefix) {{
+            // Parse globalKey: e.g. "0_3" (lec 0, q 3)
+            const parts = globalKey.split('_');
+            const lecIdx = parseInt(parts[0]);
+            const qIdx = parseInt(parts[1]);
+            const mcq = LECTURES_DATA[lecIdx].mcqs[qIdx];
+
+            const isCorrect = selectedLetter === mcq.ans;
+
+            // Save in user state
+            userAnswers[globalKey] = {{
+                ans: selectedLetter,
+                isCorrect: isCorrect,
+                time: Date.now()
+            }};
+            localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
+
+            // Update streak
+            if (isCorrect) {{
+                currentStreak++;
+                if (currentStreak > bestStreak) bestStreak = currentStreak;
+            }} else {{
+                currentStreak = 0;
+            }}
+
+            // Re-render the specific question card without jumping
+            const oldCard = document.getElementById(cardPrefix);
+            if (oldCard) {{
+                const displayNum = oldCard.querySelector('span.text-cyan-400')?.innerText?.replace('#', '') || (qIdx + 1);
+                const sourceBadge = oldCard.querySelector('span.text-slate-400')?.innerText || `Question #${{mcq.id}}`;
+                const newCard = buildQuestionCardHtml({{
+                    globalKey: globalKey,
+                    displayNum: displayNum,
+                    mcq: mcq,
+                    answeredData: userAnswers[globalKey],
+                    sourceBadge: sourceBadge,
+                    cardPrefix: cardPrefix
+                }});
+                oldCard.replaceWith(newCard);
+            }}
+
+            // Update Nav Pill
+            if (currentMode === 'lecture') {{
+                const pill = document.getElementById(`lec-nav-pill-${{qIdx}}`);
+                if (pill) {{
+                    pill.className = `w-8 h-8 rounded-lg text-xs font-mono flex items-center justify-center transition-all ${{isCorrect ? 'bg-emerald-600 text-white font-bold' : 'bg-rose-600 text-white font-bold'}}`;
+                }}
+                updateLectureQuizScoreBadge();
+            }} else {{
+                // Update simulator matrix pill
+                const simPill = document.getElementById(`sim-matrix-pill-${{globalKey}}`);
+                if (simPill) {{
+                    simPill.className = `w-7 h-7 rounded text-[10px] font-mono flex items-center justify-center transition-all ${{isCorrect ? 'bg-emerald-600 text-white font-bold' : 'bg-rose-600 text-white font-bold'}}`;
+                }}
+                updateSimulatorStats();
+            }}
+
+            updateAllStats();
         }}
 
-        function gradeCurrentQuiz() {{
-            quizGraded[currentLecIndex] = true;
-            renderMCQs();
-            updateQuizBadge();
+        // Allow user to re-try a question
+        function retryQuestion(globalKey, cardPrefix) {{
+            delete userAnswers[globalKey];
+            localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
+
+            const parts = globalKey.split('_');
+            const lecIdx = parseInt(parts[0]);
+            const qIdx = parseInt(parts[1]);
+            const mcq = LECTURES_DATA[lecIdx].mcqs[qIdx];
+
+            const oldCard = document.getElementById(cardPrefix);
+            if (oldCard) {{
+                const displayNum = oldCard.querySelector('span.text-cyan-400')?.innerText?.replace('#', '') || (qIdx + 1);
+                const sourceBadge = oldCard.querySelector('span.text-slate-400')?.innerText || `Question #${{mcq.id}}`;
+                const newCard = buildQuestionCardHtml({{
+                    globalKey: globalKey,
+                    displayNum: displayNum,
+                    mcq: mcq,
+                    answeredData: null,
+                    sourceBadge: sourceBadge,
+                    cardPrefix: cardPrefix
+                }});
+                oldCard.replaceWith(newCard);
+            }}
+
+            if (currentMode === 'lecture') {{
+                const pill = document.getElementById(`lec-nav-pill-${{qIdx}}`);
+                if (pill) pill.className = "w-8 h-8 rounded-lg text-xs font-mono flex items-center justify-center transition-all bg-slate-800 text-slate-400 hover:bg-slate-700";
+                updateLectureQuizScoreBadge();
+            }} else {{
+                const simPill = document.getElementById(`sim-matrix-pill-${{globalKey}}`);
+                if (simPill) simPill.className = "w-7 h-7 rounded text-[10px] font-mono flex items-center justify-center transition-all bg-slate-800 text-slate-400 hover:bg-slate-700";
+                updateSimulatorStats();
+            }}
+            updateAllStats();
         }}
 
-        function resetCurrentQuiz() {{
+        function resetCurrentLectureQuiz() {{
+            if (!confirm(`Reset all answers for Lecture ${{LECTURES_DATA[currentLecIndex].number}}?`)) return;
             const lec = LECTURES_DATA[currentLecIndex];
             lec.mcqs.forEach((_, qIdx) => {{
                 delete userAnswers[`${{currentLecIndex}}_${{qIdx}}`];
             }});
-            quizGraded[currentLecIndex] = false;
-            renderMCQs();
-            updateQuizBadge();
+            localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
+            renderLectureMCQs();
+            updateAllStats();
         }}
 
-        function updateQuizBadge() {{
-            const badge = document.getElementById('quizScoreBadge');
-            if (quizGraded[currentLecIndex]) {{
-                const lec = LECTURES_DATA[currentLecIndex];
-                let score = 0;
-                lec.mcqs.forEach((mcq, qIdx) => {{
-                    if (userAnswers[`${{currentLecIndex}}_${{qIdx}}`] === mcq.ans) {{
-                        score++;
-                    }}
-                }});
-                badge.innerText = `Score: ${{score}} / 20 (${{Math.round(score/20*100)}}%)`;
-                badge.classList.remove('hidden');
-            }} else {{
-                badge.classList.add('hidden');
+        function revealAllLectureExplanations() {{
+            const lec = LECTURES_DATA[currentLecIndex];
+            lec.mcqs.forEach((mcq, qIdx) => {{
+                const k = `${{currentLecIndex}}_${{qIdx}}`;
+                if (!userAnswers[k]) {{
+                    userAnswers[k] = {{ ans: mcq.ans, isCorrect: true, time: Date.now() }};
+                }}
+            }});
+            localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
+            renderLectureMCQs();
+            updateAllStats();
+        }}
+
+        function updateLectureQuizScoreBadge() {{
+            const lec = LECTURES_DATA[currentLecIndex];
+            let answered = 0;
+            let correct = 0;
+            lec.mcqs.forEach((_, qIdx) => {{
+                const ans = userAnswers[`${{currentLecIndex}}_${{qIdx}}`];
+                if (ans) {{
+                    answered++;
+                    if (ans.isCorrect) correct++;
+                }}
+            }});
+            const pct = answered > 0 ? Math.round((correct / 20) * 100) : 0;
+            const scoreEl = document.getElementById('lecQuizLiveScore');
+            if (scoreEl) {{
+                scoreEl.innerText = `${{correct}} / 20 Correct (${{pct}}%) · ${{answered}}/20 Answered`;
             }}
+        }}
+
+        // ==========================================
+        // 100-QUESTION SHUFFLED SIMULATOR LOGIC
+        // ==========================================
+
+        function renderSimulatorView() {{
+            const container = document.getElementById('simQuestionsContainer');
+            const matrix = document.getElementById('simMatrixContainer');
+            container.innerHTML = '';
+            matrix.innerHTML = '';
+
+            let filteredList = simulatorQuestions.filter(item => {{
+                // Status Filter
+                const ans = userAnswers[item.globalKey];
+                if (simCurrentFilter === 'unanswered' && ans) return false;
+                if (simCurrentFilter === 'correct' && (!ans || !ans.isCorrect)) return false;
+                if (simCurrentFilter === 'incorrect' && (!ans || ans.isCorrect)) return false;
+
+                // Lecture Filter
+                if (simCurrentLecFilter !== 'all' && item.lecNumber.toString() !== simCurrentLecFilter) return false;
+
+                return true;
+            }});
+
+            // Render Shuffled Question Cards
+            filteredList.forEach((item, index) => {{
+                const answeredData = userAnswers[item.globalKey];
+                const card = buildQuestionCardHtml({{
+                    globalKey: item.globalKey,
+                    displayNum: index + 1,
+                    mcq: item,
+                    answeredData: answeredData,
+                    sourceBadge: `L${{item.lecNumber}}: ${{item.lecTitle.split(':')[0]}}`,
+                    cardPrefix: `sim_card_${{item.globalKey}}`
+                }});
+                container.appendChild(card);
+            }});
+
+            // Render 100-Question Matrix (Always shows all 100)
+            simulatorQuestions.forEach((item, idx) => {{
+                const answeredData = userAnswers[item.globalKey];
+                let pillColor = "bg-slate-850 text-slate-500 border border-slate-800";
+                if (answeredData) {{
+                    pillColor = answeredData.isCorrect ? "bg-emerald-600 text-white font-bold" : "bg-rose-600 text-white font-bold";
+                }}
+                const pill = document.createElement('button');
+                pill.id = `sim-matrix-pill-${{item.globalKey}}`;
+                pill.className = `w-7 h-7 rounded text-[10px] font-mono flex items-center justify-center transition-all ${{pillColor}} hover:scale-110`;
+                pill.innerText = idx + 1;
+                pill.title = `Q${{idx + 1}} (L${{item.lecNumber}}): ${{item.q.substring(0, 45)}}...`;
+                pill.onclick = () => {{
+                    // Ensure item is visible by resetting filters if needed
+                    const cardEl = document.getElementById(`sim_card_${{item.globalKey}}`);
+                    if (!cardEl) {{
+                        simCurrentFilter = 'all';
+                        simCurrentLecFilter = 'all';
+                        document.getElementById('simLecFilterSelect').value = 'all';
+                        renderSimulatorView();
+                    }}
+                    setTimeout(() => {{
+                        document.getElementById(`sim_card_${{item.globalKey}}`)?.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                    }}, 50);
+                }};
+                matrix.appendChild(pill);
+            }});
+
+            updateSimulatorStats();
+        }}
+
+        function reshuffleSimulatorQuestions() {{
+            simulatorQuestions = shuffleArray(simulatorQuestions);
+            const seedBadge = document.getElementById('simulatorSeedBadge');
+            if (seedBadge) seedBadge.innerText = `Reshuffled #${{Math.floor(Math.random() * 9000 + 1000)}}`;
+            renderSimulatorView();
+        }}
+
+        function resetSimulatorProgress() {{
+            if (!confirm("Are you sure you want to clear your answers across all 100 questions for a fresh exam?")) return;
+            userAnswers = {{}};
+            currentStreak = 0;
+            localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
+            renderSimulatorView();
+            updateAllStats();
+        }}
+
+        function setSimFilter(filterType) {{
+            simCurrentFilter = filterType;
+            // Update filter chip styling
+            const chips = ['all', 'unanswered', 'incorrect', 'correct'];
+            chips.forEach(t => {{
+                const btn = document.getElementById(`sim-flt-${{t}}`);
+                if (t === filterType) {{
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-mono transition-all bg-cyan-500 text-slate-950 font-bold shadow-md";
+                }} else {{
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-mono transition-all text-slate-400 hover:bg-slate-800 border border-slate-800";
+                }}
+            }});
+            renderSimulatorView();
+        }}
+
+        function setSimLectureFilter(val) {{
+            simCurrentLecFilter = val;
+            renderSimulatorView();
+        }}
+
+        function toggleMatrixExpand() {{
+            const mat = document.getElementById('simMatrixContainer');
+            const btn = document.getElementById('matrixToggleBtn');
+            matrixExpanded = !matrixExpanded;
+            if (matrixExpanded) {{
+                mat.classList.remove('hidden');
+                btn.innerText = "▲ Collapse Matrix";
+            }} else {{
+                mat.classList.add('hidden');
+                btn.innerText = "▼ Expand Matrix";
+            }}
+        }}
+
+        function updateSimulatorStats() {{
+            let total = 100;
+            let answered = 0;
+            let correct = 0;
+            let incorrect = 0;
+
+            simulatorQuestions.forEach(q => {{
+                const ans = userAnswers[q.globalKey];
+                if (ans) {{
+                    answered++;
+                    if (ans.isCorrect) correct++;
+                    else incorrect++;
+                }}
+            }});
+
+            const unanswered = total - answered;
+
+            document.getElementById('simCountAll').innerText = total;
+            document.getElementById('simCountUnanswered').innerText = unanswered;
+            document.getElementById('simCountIncorrect').innerText = incorrect;
+            document.getElementById('simCountCorrect').innerText = correct;
+            document.getElementById('simMatrixProgress').innerText = `${{answered}}/100 Answered (${{answered > 0 ? Math.round(correct/answered*100) : 0}}% Acc)`;
+        }}
+
+        // ==========================================
+        // GLOBAL LIVE STATS & FLOATING HUD
+        // ==========================================
+
+        function updateAllStats() {{
+            let total = 100;
+            let answered = 0;
+            let correct = 0;
+
+            for (let l = 0; l < 5; l++) {{
+                for (let q = 0; q < 20; q++) {{
+                    const a = userAnswers[`${{l}}_${{q}}`];
+                    if (a) {{
+                        answered++;
+                        if (a.isCorrect) correct++;
+                    }}
+                }}
+            }}
+
+            const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+            // Top Header live stats
+            document.getElementById('headerCorrectCount').innerText = correct;
+            document.getElementById('headerAccuracyLive').innerText = `${{accuracy}}% Acc`;
+
+            // Hero streak
+            document.getElementById('heroStreakDisplay').innerText = `🔥 ${{currentStreak}}`;
+
+            // Floating HUD
+            updateFloatingHUD();
+        }}
+
+        function updateFloatingHUD() {{
+            const hud = document.getElementById('floatingHUD');
+            
+            let answered = 0;
+            let correct = 0;
+            let maxCount = 20;
+
+            if (currentMode === 'lecture') {{
+                maxCount = 20;
+                for (let q = 0; q < 20; q++) {{
+                    const a = userAnswers[`${{currentLecIndex}}_${{q}}`];
+                    if (a) {{
+                        answered++;
+                        if (a.isCorrect) correct++;
+                    }}
+                }}
+            }} else {{
+                maxCount = 100;
+                for (let l = 0; l < 5; l++) {{
+                    for (let q = 0; q < 20; q++) {{
+                        const a = userAnswers[`${{l}}_${{q}}`];
+                        if (a) {{
+                            answered++;
+                            if (a.isCorrect) correct++;
+                        }}
+                    }}
+                }}
+            }}
+
+            const acc = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+            document.getElementById('hudAnswered').innerText = `${{answered}}/${{maxCount}}`;
+            document.getElementById('hudScore').innerText = `${{correct}}`;
+            document.getElementById('hudAccuracy').innerText = `(${{acc}}%)`;
+            document.getElementById('hudStreak').innerText = `${{currentStreak}} Streak`;
+
+            const flame = document.getElementById('hudStreakFlame');
+            if (currentStreak >= 5) {{
+                flame.className = "text-base animate-bounce";
+            }} else {{
+                flame.className = "text-sm";
+            }}
+        }}
+
+        function scrollToTop() {{
+            window.scrollTo({{ top: 0, behavior: 'smooth' }});
         }}
 
         // Quick Search Filter across summary and MCQs
@@ -555,7 +1288,7 @@ def generate_html():
                 const lec = LECTURES_DATA[i];
                 const content = (lec.title + " " + lec.summary_html).toLowerCase();
                 if (content.includes(term)) {{
-                    if (currentLecIndex !== i) {{
+                    if (currentMode !== 'lecture' || currentLecIndex !== i) {{
                         switchLecture(i);
                     }}
                     break;
@@ -563,9 +1296,20 @@ def generate_html():
             }}
         }}
 
-        // Initialize on load
+        // Keyboard Shortcut: '/' or 'Ctrl+K' to focus search
+        window.addEventListener('keydown', (e) => {{
+            if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) {{
+                e.preventDefault();
+                document.getElementById('globalSearch')?.focus();
+            }}
+        }});
+
+        // Initialize on DOM Ready
         window.addEventListener('DOMContentLoaded', () => {{
+            initSimulatorData();
             switchLecture(0);
+            updateTotalMasteredHero();
+            updateAllStats();
         }});
     </script>
 </body>
@@ -573,7 +1317,7 @@ def generate_html():
 """
     with open("d:\\Tech\\Summariez\\index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
-    print("Successfully created d:\\Tech\\Summariez\\index.html")
+    print("Successfully built updated index.html with instant feedback and 100Q shuffled simulator!")
 
 if __name__ == "__main__":
     generate_html()
