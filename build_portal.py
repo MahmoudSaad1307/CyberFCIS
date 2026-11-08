@@ -2,9 +2,14 @@
 """
 Builds the complete single-page CyberTutor portal in d:\\Tech\\Summariez\\index.html
 Features:
-- Instant feedback on every question selection (emerald for correct, rose for incorrect, correct answer revealed immediately, explanation expanded instantly)
-- Dedicated "🎲 All-Lectures Simulator (100 Qs Shuffled)" mode with randomizer, lecture source tags, and filters
-- Senior UI/UX overhaul: sticky live HUD (answered count, score, accuracy %, streak 🔥), 100-question jump navigator, flashcard mastery tracking, dark cybersecurity theme, and local persistence.
+- Instant feedback on every question selection across all lectures
+- Dedicated "🎲 All-Lectures Simulator (100 Qs Shuffled)" mode with randomizer & filters
+- Dedicated "📝 Solved Previous Exams" tab with step-by-step solutions for:
+    * Math: 62^8 SHA-256 Precomputed Hash Table Storage (8.73 Petabytes) & Rainbow Tables
+    * Database DAC Access Control Matrix, ACLs, and SQL DCL statements
+    * University File System Access Control & Bell-LaPadula (BLP) MAC Multi-Level Table
+    * 10 Official Exam MCQs with instant evaluation & distractor breakdowns
+- Senior UI/UX overhaul: sticky live HUD, 100-question jump matrix, flashcard mastery tracking, dark cyber theme.
 """
 import json
 import html
@@ -13,11 +18,14 @@ from data_lec2 import LEC2_DATA
 from data_lec3 import LEC3_DATA
 from data_lec4 import LEC4_DATA
 from data_lec5 import LEC5_DATA
+from data_previous_exams import EXAM_MCQS, generate_exams_html
 
 LECTURES = [LEC1_DATA, LEC2_DATA, LEC3_DATA, LEC4_DATA, LEC5_DATA]
 
 def generate_html():
     lectures_json = json.dumps(LECTURES, ensure_ascii=False)
+    exam_mcqs_json = json.dumps(EXAM_MCQS, ensure_ascii=False)
+    exams_sections_html = generate_exams_html()
     
     html_content = f"""<!DOCTYPE html>
 <html lang="en" class="dark scroll-smooth">
@@ -184,7 +192,7 @@ def generate_html():
                     </div>
                 </div>
 
-                <!-- Navigation Tabs (5 Lectures + Shuffled 100Q Exam Simulator) -->
+                <!-- Navigation Tabs (5 Lectures + 100Q Simulator + Solved Past Exams) -->
                 <nav class="hidden md:flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800" id="lectureNav">
                     <button onclick="switchLecture(0)" id="nav-btn-0" class="lec-nav-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-200 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm">
                         L1: Intro
@@ -206,7 +214,14 @@ def generate_html():
                     <button onclick="switchToSimulator()" id="nav-btn-sim" class="lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-purple-300 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 flex items-center gap-1.5 ml-1">
                         <span class="inline-block animate-spin" style="animation-duration: 6s;">🎲</span>
                         <span>100Q Simulator</span>
-                        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                    </button>
+
+                    <!-- SPECIAL PREVIOUS EXAMS SOLVED TAB -->
+                    <button onclick="switchToExams()" id="nav-btn-exams" class="lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-emerald-300 hover:text-white bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 flex items-center gap-1.5 ml-1">
+                        <span>📝</span>
+                        <span>Solved Exams</span>
+                        <span class="px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 text-[10px] font-bold">NEW</span>
                     </button>
                 </nav>
 
@@ -238,6 +253,7 @@ def generate_html():
                 <button onclick="switchLecture(3)" id="m-nav-btn-3" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L4: Auth</button>
                 <button onclick="switchLecture(4)" id="m-nav-btn-4" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono text-slate-400 hover:bg-slate-800">L5: Access</button>
                 <button onclick="switchToSimulator()" id="m-nav-btn-sim" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-purple-950/60 text-purple-300 border border-purple-500/40 font-semibold">🎲 100Q Exam</button>
+                <button onclick="switchToExams()" id="m-nav-btn-exams" class="m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 font-semibold">📝 Solved Exams</button>
             </div>
         </div>
     </header>
@@ -258,7 +274,7 @@ def generate_html():
                         Cybersecurity <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400">Mastery & Exam Coach</span>
                     </h1>
                     <p class="text-slate-400 text-xs sm:text-sm max-w-3xl leading-relaxed">
-                        Complete curriculum guides, high-speed flashcards, and 100 rigorous MCQs with <strong class="text-cyan-300">instant real-time evaluation</strong> based strictly on Dr. Alshaimaa Abo-alian's university course.
+                        Complete curriculum guides, high-speed flashcards, 100 rigorous MCQs, and <strong class="text-emerald-400">official solved past papers</strong> based strictly on Dr. Alshaimaa Abo-alian & Prof. Walaa Khaled's exams.
                     </p>
                 </div>
 
@@ -269,8 +285,8 @@ def generate_html():
                         <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Lectures</div>
                     </div>
                     <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-emerald-500/40 transition-colors">
-                        <div class="text-lg sm:text-xl font-bold font-mono text-emerald-400">100</div>
-                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">MCQ Tests</div>
+                        <div class="text-lg sm:text-xl font-bold font-mono text-emerald-400">110</div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Total MCQs</div>
                     </div>
                     <div class="p-2.5 sm:p-3 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-purple-500/40 transition-colors">
                         <div class="text-lg sm:text-xl font-bold font-mono text-purple-400" id="heroStreakDisplay">🔥 0</div>
@@ -503,6 +519,74 @@ def generate_html():
             </div>
         </div>
 
+        <!-- ============================================================== -->
+        <!-- VIEW 3: OFFICIAL PREVIOUS EXAMS & PAST PAPERS SOLVED HUB       -->
+        <!-- ============================================================== -->
+        <div id="view-exams" class="hidden space-y-6">
+
+            <!-- Exam Header Card -->
+            <div class="p-6 sm:p-7 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-cyan-950/60 border border-emerald-500/40 glow-emerald relative overflow-hidden">
+                <div class="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-emerald-500/10 to-transparent pointer-events-none"></div>
+
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 font-mono text-xs font-semibold mb-2.5">
+                            <span>🎓 Ain Shams University · Faculty of Computers & Information Sciences</span>
+                            <span>•</span>
+                            <span>Official Exam Archives</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                            <span>Previous Exams & Past Papers — Step-by-Step Solutions</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-300 font-mono mt-1 max-w-3xl leading-relaxed">
+                            Complete step-by-step solutions for official university exam papers: storage calculations (62⁸ SHA-256), Rainbow tables, database DAC & SQL DCL, Bell-LaPadula multi-level tables, and 10 high-yield MCQs.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-3 mt-3 text-xs font-mono text-slate-400">
+                            <span>Examiners: <strong class="text-slate-200">Prof. Walaa Khaled & Dr. Alshaimaa Abo-alian</strong></span>
+                            <span>•</span>
+                            <span>Course: <strong class="text-slate-200">INF423 Cyber Security</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Highlights Badge Grid -->
+                    <div class="grid grid-cols-3 gap-2.5 text-center shrink-0">
+                        <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl">
+                            <div class="text-xl font-bold font-mono text-emerald-400">3</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Written Tasks</div>
+                        </div>
+                        <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl">
+                            <div class="text-xl font-bold font-mono text-cyan-400">10</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Official MCQs</div>
+                        </div>
+                        <div class="p-3 bg-slate-900/90 border border-slate-800 rounded-xl">
+                            <div class="text-xl font-bold font-mono text-amber-400">100%</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Step-by-Step</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Jump Anchor Pills -->
+            <div class="sticky top-16 z-30 bg-[#050811]/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-800 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-mono text-slate-400 px-2 font-semibold">Jump to:</span>
+                <a href="#exam-sec-math" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 hover:border-cyan-500/40">
+                    🧮 1. Password Storage (62⁸ SHA-256)
+                </a>
+                <a href="#exam-sec-db-dac" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors bg-slate-900 hover:bg-slate-800 text-purple-300 border border-slate-800 hover:border-purple-500/40">
+                    🛡️ 2. Database DAC & SQL DCL
+                </a>
+                <a href="#exam-sec-blp" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-800 hover:border-emerald-500/40">
+                    🏛️ 3. University BLP Matrix (MAC)
+                </a>
+                <a href="#exam-sec-mcqs" class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/40">
+                    🎯 4. 10 Official Exam MCQs
+                </a>
+            </div>
+
+            <!-- All 4 Sections Rendered from data_previous_exams -->
+            {exams_sections_html}
+        </div>
+
     </main>
 
     <!-- FLOATING REAL-TIME HUD (Appears when taking quizzes) -->
@@ -537,7 +621,7 @@ def generate_html():
                 <span>Faculty of Computers & Information Sciences, Ain Shams University</span>
             </div>
             <div>
-                Lectures strictly from <strong class="text-slate-300">Dr. Alshaimaa Abo-alian</strong>
+                Lectures strictly from <strong class="text-slate-300">Dr. Alshaimaa Abo-alian & Prof. Walaa Khaled</strong>
             </div>
         </div>
     </footer>
@@ -545,20 +629,24 @@ def generate_html():
     <!-- INLINE APPLICATION LOGIC -->
     <script>
         const LECTURES_DATA = {lectures_json};
+        const EXAM_MCQS = {exam_mcqs_json};
         
         // Application State
-        let currentMode = 'lecture'; // 'lecture' or 'simulator'
+        let currentMode = 'lecture'; // 'lecture', 'simulator', or 'exams'
         let currentLecIndex = 0;
         let currentTab = 'summary'; // 'summary', 'memory', 'mcq'
         
         // Storage keys
         const STORAGE_KEY_ANSWERS = 'cybertutor_v2_answers';
         const STORAGE_KEY_MASTERED = 'cybertutor_v2_mastered';
+        const STORAGE_KEY_EXAM_MCQ = 'cybertutor_v2_exam_mcq';
         
         // userAnswers: {{ "globalKey": {{ ans: "A", isCorrect: true }} }}
         let userAnswers = JSON.parse(localStorage.getItem(STORAGE_KEY_ANSWERS) || '{{}}');
         // masteredCards: {{ "cardKey": true }}
         let masteredCards = JSON.parse(localStorage.getItem(STORAGE_KEY_MASTERED) || '{{}}');
+        // examMCQAnswers: {{ "idx": {{ ans: "A", isCorrect: true }} }}
+        let examMCQAnswers = JSON.parse(localStorage.getItem(STORAGE_KEY_EXAM_MCQ) || '{{}}');
         
         // Streak counter
         let currentStreak = 0;
@@ -607,9 +695,10 @@ def generate_html():
             currentLecIndex = index;
             const lec = LECTURES_DATA[index];
 
-            // Show Lecture view, hide simulator
+            // Show Lecture view, hide simulator and exams
             document.getElementById('view-lecture').classList.remove('hidden');
             document.getElementById('view-simulator').classList.add('hidden');
+            document.getElementById('view-exams').classList.add('hidden');
 
             // Update Header Title & Meta
             document.getElementById('currentLecBadge').innerText = lec.badge;
@@ -632,9 +721,10 @@ def generate_html():
         function switchToSimulator() {{
             currentMode = 'simulator';
             
-            // Show Simulator view, hide lecture
+            // Show Simulator view, hide others
             document.getElementById('view-lecture').classList.add('hidden');
             document.getElementById('view-simulator').classList.remove('hidden');
+            document.getElementById('view-exams').classList.add('hidden');
 
             updateNavPills();
 
@@ -648,8 +738,22 @@ def generate_html():
             window.scrollTo({{ top: 0, behavior: 'smooth' }});
         }}
 
+        function switchToExams() {{
+            currentMode = 'exams';
+
+            // Show Exams view, hide others
+            document.getElementById('view-lecture').classList.add('hidden');
+            document.getElementById('view-simulator').classList.add('hidden');
+            document.getElementById('view-exams').classList.remove('hidden');
+
+            updateNavPills();
+            renderExamMCQs();
+            updateAllStats();
+            window.scrollTo({{ top: 0, behavior: 'smooth' }});
+        }}
+
         function updateNavPills() {{
-            // Desktop nav buttons
+            // Desktop lecture nav buttons
             for (let i = 0; i < 5; i++) {{
                 const btn = document.getElementById(`nav-btn-${{i}}`);
                 const mBtn = document.getElementById(`m-nav-btn-${{i}}`);
@@ -671,6 +775,17 @@ def generate_html():
             }} else {{
                 simBtn.className = "lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-purple-300 hover:text-white bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 flex items-center gap-1.5 ml-1";
                 if (mSimBtn) mSimBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-purple-950/60 text-purple-300 border border-purple-500/40 font-semibold";
+            }}
+
+            // Previous Exams button
+            const examsBtn = document.getElementById('nav-btn-exams');
+            const mExamsBtn = document.getElementById('m-nav-btn-exams');
+            if (currentMode === 'exams') {{
+                examsBtn.className = "lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all duration-200 text-white bg-emerald-600 border border-emerald-400 shadow-md shadow-emerald-500/30 flex items-center gap-1.5 ml-1";
+                if (mExamsBtn) mExamsBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-emerald-600 text-white border border-emerald-400 font-bold";
+            }} else {{
+                examsBtn.className = "lec-nav-btn relative px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all duration-200 text-emerald-300 hover:text-white bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 flex items-center gap-1.5 ml-1";
+                if (mExamsBtn) mExamsBtn.className = "m-lec-btn whitespace-nowrap px-3 py-1 rounded-md text-xs font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 font-semibold";
             }}
         }}
 
@@ -794,7 +909,6 @@ def generate_html():
         // INSTANT FEEDBACK MCQ ENGINE (CORE FEATURE)
         // ==========================================
 
-        // Render Lecture MCQs (20 Qs)
         function renderLectureMCQs() {{
             const lec = LECTURES_DATA[currentLecIndex];
             const container = document.getElementById('questionsContainer');
@@ -806,7 +920,6 @@ def generate_html():
                 const globalKey = `${{currentLecIndex}}_${{qIdx}}`;
                 const answeredData = userAnswers[globalKey];
 
-                // 1. Build Question Card
                 const qCard = buildQuestionCardHtml({{
                     globalKey: globalKey,
                     displayNum: qIdx + 1,
@@ -817,7 +930,6 @@ def generate_html():
                 }});
                 container.appendChild(qCard);
 
-                // 2. Build Navigator Pill
                 const navBtn = document.createElement('button');
                 navBtn.id = `lec-nav-pill-${{qIdx}}`;
                 let pillColor = "bg-slate-800 text-slate-400 hover:bg-slate-700";
@@ -835,7 +947,6 @@ def generate_html():
             updateLectureQuizScoreBadge();
         }}
 
-        // General reusable function to construct Question Card DOM Element
         function buildQuestionCardHtml(props) {{
             const {{ globalKey, displayNum, mcq, answeredData, sourceBadge, cardPrefix }} = props;
             const card = document.createElement('div');
@@ -852,13 +963,11 @@ def generate_html():
                 let cursorStyle = "cursor-pointer";
 
                 if (answeredData) {{
-                    cursorStyle = "cursor-default pointer-events-none"; // Locked after answer
+                    cursorStyle = "cursor-default pointer-events-none";
                     if (letter === mcq.ans) {{
-                        // True correct answer
                         cardStyle = "border-emerald-500 bg-emerald-950/60 text-emerald-200 font-medium ring-1 ring-emerald-500/60 glow-emerald";
                         badgeHtml = `<span class="w-6 h-6 rounded-md bg-emerald-500 text-slate-950 font-mono text-xs flex items-center justify-center font-bold">✓</span>`;
                     }} else if (answeredData.ans === letter && !answeredData.isCorrect) {{
-                        // User chose this incorrect answer
                         cardStyle = "border-rose-500 bg-rose-950/60 text-rose-200 ring-1 ring-rose-500/60";
                         badgeHtml = `<span class="w-6 h-6 rounded-md bg-rose-500 text-white font-mono text-xs flex items-center justify-center font-bold">✗</span>`;
                     }} else {{
@@ -877,7 +986,6 @@ def generate_html():
                 `;
             }});
 
-            // Explanation panel (Revealed immediately if answered)
             let explanationHtml = '';
             if (answeredData) {{
                 const isCorrect = answeredData.isCorrect;
@@ -917,9 +1025,7 @@ def generate_html():
             return card;
         }}
 
-        // Core Instant Feedback Click Handler
         function handleInstantAnswer(globalKey, selectedLetter, cardPrefix) {{
-            // Parse globalKey: e.g. "0_3" (lec 0, q 3)
             const parts = globalKey.split('_');
             const lecIdx = parseInt(parts[0]);
             const qIdx = parseInt(parts[1]);
@@ -927,7 +1033,6 @@ def generate_html():
 
             const isCorrect = selectedLetter === mcq.ans;
 
-            // Save in user state
             userAnswers[globalKey] = {{
                 ans: selectedLetter,
                 isCorrect: isCorrect,
@@ -935,7 +1040,6 @@ def generate_html():
             }};
             localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
 
-            // Update streak
             if (isCorrect) {{
                 currentStreak++;
                 if (currentStreak > bestStreak) bestStreak = currentStreak;
@@ -943,7 +1047,6 @@ def generate_html():
                 currentStreak = 0;
             }}
 
-            // Re-render the specific question card without jumping
             const oldCard = document.getElementById(cardPrefix);
             if (oldCard) {{
                 const displayNum = oldCard.querySelector('span.text-cyan-400')?.innerText?.replace('#', '') || (qIdx + 1);
@@ -959,15 +1062,13 @@ def generate_html():
                 oldCard.replaceWith(newCard);
             }}
 
-            // Update Nav Pill
             if (currentMode === 'lecture') {{
                 const pill = document.getElementById(`lec-nav-pill-${{qIdx}}`);
                 if (pill) {{
                     pill.className = `w-8 h-8 rounded-lg text-xs font-mono flex items-center justify-center transition-all ${{isCorrect ? 'bg-emerald-600 text-white font-bold' : 'bg-rose-600 text-white font-bold'}}`;
                 }}
                 updateLectureQuizScoreBadge();
-            }} else {{
-                // Update simulator matrix pill
+            }} else if (currentMode === 'simulator') {{
                 const simPill = document.getElementById(`sim-matrix-pill-${{globalKey}}`);
                 if (simPill) {{
                     simPill.className = `w-7 h-7 rounded text-[10px] font-mono flex items-center justify-center transition-all ${{isCorrect ? 'bg-emerald-600 text-white font-bold' : 'bg-rose-600 text-white font-bold'}}`;
@@ -978,7 +1079,6 @@ def generate_html():
             updateAllStats();
         }}
 
-        // Allow user to re-try a question
         function retryQuestion(globalKey, cardPrefix) {{
             delete userAnswers[globalKey];
             localStorage.setItem(STORAGE_KEY_ANSWERS, JSON.stringify(userAnswers));
@@ -1007,7 +1107,7 @@ def generate_html():
                 const pill = document.getElementById(`lec-nav-pill-${{qIdx}}`);
                 if (pill) pill.className = "w-8 h-8 rounded-lg text-xs font-mono flex items-center justify-center transition-all bg-slate-800 text-slate-400 hover:bg-slate-700";
                 updateLectureQuizScoreBadge();
-            }} else {{
+            }} else if (currentMode === 'simulator') {{
                 const simPill = document.getElementById(`sim-matrix-pill-${{globalKey}}`);
                 if (simPill) simPill.className = "w-7 h-7 rounded text-[10px] font-mono flex items-center justify-center transition-all bg-slate-800 text-slate-400 hover:bg-slate-700";
                 updateSimulatorStats();
@@ -1068,19 +1168,15 @@ def generate_html():
             matrix.innerHTML = '';
 
             let filteredList = simulatorQuestions.filter(item => {{
-                // Status Filter
                 const ans = userAnswers[item.globalKey];
                 if (simCurrentFilter === 'unanswered' && ans) return false;
                 if (simCurrentFilter === 'correct' && (!ans || !ans.isCorrect)) return false;
                 if (simCurrentFilter === 'incorrect' && (!ans || ans.isCorrect)) return false;
 
-                // Lecture Filter
                 if (simCurrentLecFilter !== 'all' && item.lecNumber.toString() !== simCurrentLecFilter) return false;
-
                 return true;
             }});
 
-            // Render Shuffled Question Cards
             filteredList.forEach((item, index) => {{
                 const answeredData = userAnswers[item.globalKey];
                 const card = buildQuestionCardHtml({{
@@ -1094,7 +1190,6 @@ def generate_html():
                 container.appendChild(card);
             }});
 
-            // Render 100-Question Matrix (Always shows all 100)
             simulatorQuestions.forEach((item, idx) => {{
                 const answeredData = userAnswers[item.globalKey];
                 let pillColor = "bg-slate-850 text-slate-500 border border-slate-800";
@@ -1107,7 +1202,6 @@ def generate_html():
                 pill.innerText = idx + 1;
                 pill.title = `Q${{idx + 1}} (L${{item.lecNumber}}): ${{item.q.substring(0, 45)}}...`;
                 pill.onclick = () => {{
-                    // Ensure item is visible by resetting filters if needed
                     const cardEl = document.getElementById(`sim_card_${{item.globalKey}}`);
                     if (!cardEl) {{
                         simCurrentFilter = 'all';
@@ -1143,7 +1237,6 @@ def generate_html():
 
         function setSimFilter(filterType) {{
             simCurrentFilter = filterType;
-            // Update filter chip styling
             const chips = ['all', 'unanswered', 'incorrect', 'correct'];
             chips.forEach(t => {{
                 const btn = document.getElementById(`sim-flt-${{t}}`);
@@ -1199,6 +1292,135 @@ def generate_html():
         }}
 
         // ==========================================
+        // SECTION 4: 10 EXAM MCQS EVALUATION LOGIC
+        // ==========================================
+
+        function renderExamMCQs() {{
+            const container = document.getElementById('examMCQContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            EXAM_MCQS.forEach((mcq, idx) => {{
+                const answeredData = examMCQAnswers[idx];
+                const card = document.createElement('div');
+                card.id = `exam_mcq_card_${{idx}}`;
+                card.className = "p-5 rounded-2xl bg-slate-950/80 border border-slate-800 transition-all duration-300";
+
+                const letters = ['A', 'B', 'C', 'D'];
+                let optionsHtml = '';
+
+                letters.forEach((letter, optIdx) => {{
+                    const optText = mcq.options[optIdx];
+                    let cardStyle = "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-850";
+                    let badgeHtml = `<span class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 font-mono text-xs flex items-center justify-center font-bold text-slate-400">${{letter}}</span>`;
+                    let cursorStyle = "cursor-pointer";
+
+                    if (answeredData) {{
+                        cursorStyle = "cursor-default pointer-events-none";
+                        if (letter === mcq.ans) {{
+                            cardStyle = "border-emerald-500 bg-emerald-950/60 text-emerald-200 font-medium ring-1 ring-emerald-500/60 glow-emerald";
+                            badgeHtml = `<span class="w-6 h-6 rounded-md bg-emerald-500 text-slate-950 font-mono text-xs flex items-center justify-center font-bold">✓</span>`;
+                        }} else if (answeredData.ans === letter && !answeredData.isCorrect) {{
+                            cardStyle = "border-rose-500 bg-rose-950/60 text-rose-200 ring-1 ring-rose-500/60";
+                            badgeHtml = `<span class="w-6 h-6 rounded-md bg-rose-500 text-white font-mono text-xs flex items-center justify-center font-bold">✗</span>`;
+                        }} else {{
+                            cardStyle = "border-slate-850 bg-slate-900/30 text-slate-500 opacity-60";
+                        }}
+                    }}
+
+                    optionsHtml += `
+                        <div onclick="handleExamMCQSelect(${{idx}}, '${{letter}}')" 
+                             class="option-card p-3 rounded-xl border ${{cardStyle}} ${{cursorStyle}} flex items-center gap-3 text-xs sm:text-sm select-none">
+                            ${{badgeHtml}}
+                            <span class="flex-1">${{optText}}</span>
+                            ${{answeredData && letter === mcq.ans ? '<span class="text-[10px] font-mono uppercase bg-emerald-500 text-slate-950 px-2 py-0.5 rounded font-bold">Correct</span>' : ''}}
+                            ${{answeredData && answeredData.ans === letter && !answeredData.isCorrect ? '<span class="text-[10px] font-mono uppercase bg-rose-500 text-white px-2 py-0.5 rounded font-bold">Your Choice</span>' : ''}}
+                        </div>
+                    `;
+                }});
+
+                let explanationHtml = '';
+                if (answeredData) {{
+                    const isCorrect = answeredData.isCorrect;
+                    explanationHtml = `
+                        <div class="mt-4 p-4 rounded-xl ${{isCorrect ? 'bg-emerald-950/30 border border-emerald-500/40' : 'bg-rose-950/30 border border-rose-500/40'}} animate-slide-down text-xs sm:text-sm">
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="font-mono font-bold ${{isCorrect ? 'text-emerald-400' : 'text-rose-400'}} flex items-center gap-1.5">
+                                    <span>${{isCorrect ? '✅ Correct Answer!' : '❌ Incorrect.'}}</span>
+                                    <span>(Official Answer: [${{mcq.ans}}])</span>
+                                </span>
+                                <button onclick="retryExamMCQ(${{idx}})" class="text-[11px] font-mono text-slate-400 hover:text-cyan-300 underline">
+                                    Try Again
+                                </button>
+                            </div>
+                            <div class="text-slate-200 leading-relaxed font-sans mb-2">${{mcq.explanation}}</div>
+                            <div class="text-[11px] font-mono text-cyan-400 bg-cyan-950/50 p-2 rounded border border-cyan-800/40">
+                                <strong>Tested Concept:</strong> ${{mcq.concept}}
+                            </div>
+                        </div>
+                    `;
+                }}
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3 mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs font-bold text-amber-400">
+                                Exam Q#${{mcq.id}}
+                            </span>
+                            <span class="text-[11px] font-mono text-slate-400">${{mcq.concept}}</span>
+                        </div>
+                        ${{answeredData ? (answeredData.isCorrect ? '<span class="text-xs font-mono text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/40">✓ Solved</span>' : '<span class="text-xs font-mono text-rose-400 font-bold bg-rose-950 px-2 py-0.5 rounded border border-rose-500/40">✗ Missed</span>') : '<span class="text-[10px] font-mono text-slate-500">Not Answered</span>'}}
+                    </div>
+                    <h4 class="text-sm sm:text-base font-semibold text-slate-100 mb-3 leading-snug">${{mcq.q}}</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        ${{optionsHtml}}
+                    </div>
+                    ${{explanationHtml}}
+                `;
+
+                container.appendChild(card);
+            }});
+
+            updateExamMCQScoreBadge();
+        }}
+
+        function handleExamMCQSelect(idx, selectedLetter) {{
+            const mcq = EXAM_MCQS[idx];
+            const isCorrect = selectedLetter === mcq.ans;
+            examMCQAnswers[idx] = {{ ans: selectedLetter, isCorrect: isCorrect }};
+            localStorage.setItem(STORAGE_KEY_EXAM_MCQ, JSON.stringify(examMCQAnswers));
+            renderExamMCQs();
+        }}
+
+        function retryExamMCQ(idx) {{
+            delete examMCQAnswers[idx];
+            localStorage.setItem(STORAGE_KEY_EXAM_MCQ, JSON.stringify(examMCQAnswers));
+            renderExamMCQs();
+        }}
+
+        function revealAllExamMCQSolutions() {{
+            EXAM_MCQS.forEach((mcq, idx) => {{
+                examMCQAnswers[idx] = {{ ans: mcq.ans, isCorrect: true }};
+            }});
+            localStorage.setItem(STORAGE_KEY_EXAM_MCQ, JSON.stringify(examMCQAnswers));
+            renderExamMCQs();
+        }}
+
+        function updateExamMCQScoreBadge() {{
+            let answered = 0;
+            let correct = 0;
+            EXAM_MCQS.forEach((mcq, idx) => {{
+                const a = examMCQAnswers[idx];
+                if (a) {{
+                    answered++;
+                    if (a.isCorrect) correct++;
+                }}
+            }});
+            const el = document.getElementById('examMCQScoreBadge');
+            if (el) el.innerText = `${{correct}} / 10 Correct (${{answered}}/10 Solved)`;
+        }}
+
+        // ==========================================
         // GLOBAL LIVE STATS & FLOATING HUD
         // ==========================================
 
@@ -1219,14 +1441,10 @@ def generate_html():
 
             const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
 
-            // Top Header live stats
             document.getElementById('headerCorrectCount').innerText = correct;
             document.getElementById('headerAccuracyLive').innerText = `${{accuracy}}% Acc`;
-
-            // Hero streak
             document.getElementById('heroStreakDisplay').innerText = `🔥 ${{currentStreak}}`;
 
-            // Floating HUD
             updateFloatingHUD();
         }}
 
@@ -1246,7 +1464,7 @@ def generate_html():
                         if (a.isCorrect) correct++;
                     }}
                 }}
-            }} else {{
+            }} else if (currentMode === 'simulator') {{
                 maxCount = 100;
                 for (let l = 0; l < 5; l++) {{
                     for (let q = 0; q < 20; q++) {{
@@ -1257,6 +1475,16 @@ def generate_html():
                         }}
                     }}
                 }}
+            }} else {{
+                // Exams Mode HUD
+                maxCount = 10;
+                EXAM_MCQS.forEach((mcq, idx) => {{
+                    const a = examMCQAnswers[idx];
+                    if (a) {{
+                        answered++;
+                        if (a.isCorrect) correct++;
+                    }}
+                }});
             }}
 
             const acc = answered > 0 ? Math.round((correct / answered) * 100) : 0;
@@ -1278,10 +1506,19 @@ def generate_html():
             window.scrollTo({{ top: 0, behavior: 'smooth' }});
         }}
 
-        // Quick Search Filter across summary and MCQs
+        // Quick Search Filter across summary, MCQs, and Exam solutions
         function handleSearch(term) {{
             term = term.toLowerCase().trim();
             if (!term) return;
+
+            // Search in Exam Solutions first if matching key exam terms
+            const examKeywords = ['rainbow', '62^8', '62', 'sha-256', 'petabyte', 'cascade', 'restrict', 'blp', 'bell-lapadula', 'top secret', 'unclassified', 'acls', 'table1', 'table2', 'table3', 'smith'];
+            for (let kw of examKeywords) {{
+                if (term.includes(kw)) {{
+                    switchToExams();
+                    return;
+                }}
+            }}
 
             // Search in which lecture it appears most
             for (let i = 0; i < LECTURES_DATA.length; i++) {{
@@ -1296,7 +1533,6 @@ def generate_html():
             }}
         }}
 
-        // Keyboard Shortcut: '/' or 'Ctrl+K' to focus search
         window.addEventListener('keydown', (e) => {{
             if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && document.activeElement.tagName !== 'INPUT')) {{
                 e.preventDefault();
@@ -1304,7 +1540,6 @@ def generate_html():
             }}
         }});
 
-        // Initialize on DOM Ready
         window.addEventListener('DOMContentLoaded', () => {{
             initSimulatorData();
             switchLecture(0);
@@ -1317,7 +1552,7 @@ def generate_html():
 """
     with open("d:\\Tech\\Summariez\\index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
-    print("Successfully built updated index.html with instant feedback and 100Q shuffled simulator!")
+    print("Successfully built index.html with Solved Previous Exams tab!")
 
 if __name__ == "__main__":
     generate_html()
